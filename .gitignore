@@ -1,0 +1,11 @@
+*.pdf
+*.aux
+*.log
+*.out
+*.bbl
+*.blg
+*.synctex.gz
+!.gitignore
+.gitignore
+.ipynb_checkpoints
+.DS_Store
