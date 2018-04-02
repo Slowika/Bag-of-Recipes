@@ -12,7 +12,7 @@ def jaccard(X):
     # Create the set of recipes that contain each ingredient
     recipe_set = [ np.array(X.index[X[ingr] != 0]) for ingr in X.columns]
 
-    # Initialise matrix of asymmetric similarity
+    # Initialise matrix of jaccard similarity
     jacs = np.zeros((X.shape[1], X.shape[1]))
 
     # Compute similarity for each pair of ingredients
