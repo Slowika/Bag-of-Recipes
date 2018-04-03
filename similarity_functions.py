@@ -18,7 +18,8 @@ def jaccard(X):
     
     # Check if any unions are zero.
     if np.any(union == 0):
-        raise valueError("Some ingredients were not present in any recipe.")
+        asims = np.zeros(X.shape[1])
+        print("Some ingredients were not present in any recipe.")
     
     # Calculate Jaccard similarities.
     jacs = inters / union
@@ -44,7 +45,8 @@ def asymmetric_cosine(X, alpha = 0.2):
     
     # Check if any unions are zero.
     if np.any(denom == 0):
-        raise valueError("Some ingredients were not present in any recipe.")
+        asims = np.zeros(X.shape[1])
+        print("Some ingredients were not present in any recipe.")
     
     # Calculate asymmetric cosine similarities.
     asims = inters / denom
