@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 def jaccard(X):
 
@@ -51,7 +52,7 @@ def jaccard(X):
 
 def asymmetric_cosine(X, alpha = 0.2):
 
-    """ Function to compute assymetric cosine similarity between two sets of elements
+    """ Function to compute asymmetric cosine similarity between two sets of elements
         In this case, we have a list of recipes that contain each ingredient in the pair
         ingredients we are evaluating
 
@@ -95,3 +96,16 @@ def asymmetric_cosine(X, alpha = 0.2):
     np.fill_diagonal(asims, 0)
 
     return asims
+
+def pmi(X):
+    """Calculate Pointwise Mutual Information (PMI) between all columns in a dataframe.
+    
+       Inputs:
+           X: dataframe of recipes x ingredients
+    """
+    
+    cooc = X.T.dot(X) / X.shape[0] # Get co-occurrence matrix.
+    pmi = cooc / np.outer(np.diag(cooc), np.diag(cooc).T) # Calculate PMIs.
+    pmi.values[[range(pmi.shape[0])]*2] = 0 # Set self-PMI to zero.
+    
+    return np.array(pmi)
