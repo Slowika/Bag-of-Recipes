@@ -54,26 +54,34 @@ def recommend_ingredients(partial_recipes, user_item_matrix, k = 10, similarity_
     # Set similarity to self to zero.
     np.fill_diagonal(similarity_matrix, 0)     
     
+    recommendations = {}
+    
     # For each ingredient, find the ingredients that are not among the k most similar and set similarity to zero.
-    for i in range(np.shape(similarity_matrix)[0]):
-        not_kNN = similarity_matrix[i, ] < similarity_matrix[i, np.argpartition(similarity_matrix[i, ], -k)[-k]]
-        similarity_matrix[i, not_kNN] = 0
+    if isinstance(k, int):
+        k = [k]
+    
+    for elem in k:
+        
+        sim = similarity_matrix.copy()
+        
+        for i in range(np.shape(similarity_matrix)[0]):
+            not_kNN = sim[i, ] < sim[i, np.argpartition(sim[i, ], -elem)[-elem]]
+            sim[i, not_kNN] = 0
 
-    # Calculate the ingredient scores.
-    ingredient_scores = np.matmul(similarity_matrix, partial_recipes.T) / np.sum(abs(similarity_matrix), axis = 1)[:, None]
-    ingredient_scores = ingredient_scores.T
+        # Calculate the ingredient scores.
+        ingredient_scores = np.matmul(sim, partial_recipes.T) / np.sum(abs(sim), axis = 1)[:, None]
+        ingredient_scores = ingredient_scores.T
     
-    # Set ingredient scores of already present ingredients to zero.
-    ingredient_scores[partial_recipes == 1] = 0
+        # Set ingredient scores of already present ingredients to zero.
+        ingredient_scores[partial_recipes == 1] = 0
    
-    # For each recipe, get the indices of the *n_recommendations* highest-scoring ingredients in order.
-    recommendations_idx = np.argsort(-ingredient_scores, axis = 1)[:, :n_recommendations]
+        # For each recipe, get the indices of the *n_recommendations* highest-scoring ingredients in order.
+        recommendations_idx = np.argsort(-ingredient_scores, axis = 1)[:, :n_recommendations]
     
-    # Convert recommendation indices to ingredient names.
-    recommendations = user_item_matrix.columns[recommendations_idx]
+        # Convert recommendation indices to ingredient names.
+        recommendations[elem] = user_item_matrix.columns[recommendations_idx]
     
     return recommendations
-
 
 
 def held_out_recommendation(user_item_matrix, model_config=[10, "cosine", 10], usePCA = False, alpha = 0.2):
@@ -81,8 +89,13 @@ def held_out_recommendation(user_item_matrix, model_config=[10, "cosine", 10], u
     Returns a list of held out ingredients and a list of corresponding recommendations
     """
     held_out_ingredients = []
-    recommendations      = []
+    recommendations      = {}
     
+    if isinstance(model_config[0], int):
+        model_config[0] = [model_config[0]]
+    
+    for k in model_config[0]:
+        recommendations[k] = []
     
     # If PCA has to be applied on the user-item matrix
     if usePCA == True:
@@ -101,15 +114,18 @@ def held_out_recommendation(user_item_matrix, model_config=[10, "cosine", 10], u
         # Current testing example: remove one ingredient
         recipe      = row.copy()
         ing         = recipe[recipe==1].sample(axis=0, random_state = 1).index.values[0]
-        recipe[ing] = 0
-
+        recipe[ing] = 0 
+        
         # Get recommendations
-        recommendation = recommend_ingredients(pd.DataFrame(recipe).T, X_curr, model_config[0], model_config[1],
-                                               n_recommendations = model_config[2], alpha=alpha)[0]
+        dict_ = recommend_ingredients(pd.DataFrame(recipe).T, X_curr, model_config[0] , model_config[1],
+                                               n_recommendations = model_config[2], alpha=alpha)
+        
+        for k, recs in dict_.items():
+            recommendations[k].append(recs[0])
         
         # Store the removed ingredient and corresponding recommendations
         held_out_ingredients.append(ing)
-        recommendations.append(recommendation)
+        #recommendations.append(recommendation)
         
     return (held_out_ingredients, recommendations)
 
@@ -151,7 +167,7 @@ def metric_3(missing_ingredients, recommendations):
 
 
 
-def calculate_metrics(missing_ingredients, recommendations, model_config):
+def calculate_metrics(missing_ingredients, recommendations, k, sim):
     """Calculate three evaluation metrics of recommendations made.
     
     Inputs:
@@ -170,8 +186,8 @@ def calculate_metrics(missing_ingredients, recommendations, model_config):
     # from recommendation_evaluation_functions import metric_1, metric_2, metric_3
     
     metrics = pd.DataFrame(columns = ["k", "similarity_measure", "top10_presence", "mean_rank", "median_rank"])
-    metrics.loc[0, "k"]                  = model_config[0]
-    metrics.loc[0, "similarity_measure"] = model_config[1]
+    metrics.loc[0, "k"]                  = k
+    metrics.loc[0, "similarity_measure"] = sim
     metrics.loc[0, "top10_presence"]     = metric_1(missing_ingredients, recommendations) 
     metrics.loc[0, "mean_rank"]          = metric_2(missing_ingredients, recommendations)
     metrics.loc[0, "median_rank"]        = metric_3(missing_ingredients, recommendations)
