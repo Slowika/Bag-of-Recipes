@@ -5,7 +5,7 @@ from sklearn.decomposition import PCA
 
 
 def recommend_ingredients(partial_recipes, user_item_matrix, k = 10, similarity_measure = "cosine", 
-                          similarity_matrix = None, n_recommendations = 10, alpha = 0.2):
+                          similarity_matrix = None, n_recommendations = 10, alpha = 0.05):
     """Recommend ingredients to (partial) recipes based on the similarity between ingredients.
     
     Inputs:
