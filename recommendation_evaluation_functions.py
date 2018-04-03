@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import statistics
+from sklearn.decomposition import PCA
 
 
 def recommend_ingredients(partial_recipes, user_item_matrix, k = 10, similarity_measure = "cosine", 
@@ -75,34 +76,36 @@ def recommend_ingredients(partial_recipes, user_item_matrix, k = 10, similarity_
 
 
 
-def held_out_recommendation(user_item_matrix, model_config = [10, "cosine", None, 10]):
-    """Return a list of held out ingredients and a list of corresponding recommendations.
-    
+def held_out_recommendation(user_item_matrix, model_config=[10, "cosine", 10], usePCA = False, alpha = 0.2):
     """
-    
+    Returns a list of held out ingredients and a list of corresponding recommendations
+    """
     held_out_ingredients = []
-    recommendations = []
-
+    recommendations      = []
+    
+    
+    # If PCA has to be applied on the user-item matrix
+    if usePCA == True:
+        n       = user_item_matrix.shape[0]
+        pca     = PCA(n_components = n)
+        X_pca_T = pca.fit_transform(user_item_matrix.T)
+        X_curr  = pd.DataFrame(X_pca_T.T, columns = user_item_matrix.columns)
+    
     for index, row in user_item_matrix.iterrows():
+        
         # Current training data: exclude the recipe tested
-        X_curr = user_item_matrix.copy()
-        X_curr.drop(index, inplace=True)
+        if usePCA == False:
+            X_curr = user_item_matrix.copy()
+            X_curr.drop(index, inplace=True)
         
         # Current testing example: remove one ingredient
-        recipe = row.copy()
-        ing = recipe[recipe==1].sample(axis=0, random_state = 1).index.values[0]
+        recipe      = row.copy()
+        ing         = recipe[recipe==1].sample(axis=0, random_state = 1).index.values[0]
         recipe[ing] = 0
 
-        # Model tested
-        k = model_config[0]
-        similarity_measure = model_config[1]
-        similarity_matrix = model_config[2]
-        n_recommendations = model_config[3]
-        
         # Get recommendations
-        recommendation = recommend_ingredients(pd.DataFrame(recipe).T, X_curr, k, 
-                                               similarity_measure, similarity_matrix, 
-                                               n_recommendations)[0]
+        recommendation = recommend_ingredients(pd.DataFrame(recipe).T, X_curr, model_config[0], model_config[1],
+                                               n_recommendations = model_config[2], alpha=alpha)[0]
         
         # Store the removed ingredient and corresponding recommendations
         held_out_ingredients.append(ing)
