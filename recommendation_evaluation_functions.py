@@ -5,7 +5,7 @@ from sklearn.decomposition import PCA
 
 
 def recommend_ingredients(partial_recipes, user_item_matrix, k = 10, similarity_measure = "cosine", 
-                          similarity_matrix = None, n_recommendations = 10, alpha = 0.05):
+                          n_recommendations = 10, alpha = 0.05):
     """Recommend ingredients to (partial) recipes based on the similarity between ingredients.
     
     Inputs:
@@ -29,27 +29,24 @@ def recommend_ingredients(partial_recipes, user_item_matrix, k = 10, similarity_
         
     """
     
-    # Calculate the similarity matrix if none was given as input.
-    if np.all(similarity_matrix == None):
+    if similarity_measure == "cosine":
+        from sklearn.metrics.pairwise import cosine_similarity
+        similarity_matrix = cosine_similarity(user_item_matrix.T)
+            
+    elif similarity_measure == "asymmetric_cosine":
+        from similarity_functions import asymmetric_cosine
+        similarity_matrix = asymmetric_cosine(user_item_matrix, alpha)
+            
+    elif similarity_measure == "jaccard":
+        from similarity_functions import jaccard
+        similarity_matrix = jaccard(user_item_matrix)
+            
+    elif similarity_measure == "pmi":
+        from similarity_functions import pmi
+        similarity_matrix = pmi(user_item_matrix)
         
-        if similarity_measure == "cosine":
-            from sklearn.metrics.pairwise import cosine_similarity
-            similarity_matrix = cosine_similarity(user_item_matrix.T)
-            
-        elif similarity_measure == "asymmetric_cosine":
-            from similarity_functions import asymmetric_cosine
-            similarity_matrix = asymmetric_cosine(user_item_matrix, alpha)
-            
-        elif similarity_measure == "jaccard":
-            from similarity_functions import jaccard
-            similarity_matrix = jaccard(user_item_matrix)
-            
-        elif similarity_measure == "pmi":
-            from similarity_functions import pmi
-            similarity_matrix = pmi(user_item_matrix)
-        
-        else: 
-            raise ValueError("The similarity measure must be one of: 'cosine', 'asymmetric_cosine', 'jaccard', 'pmi'.")
+    else: 
+        raise ValueError("The similarity measure must be one of: 'cosine', 'asymmetric_cosine', 'jaccard', 'pmi'.")
     
     # Set similarity to self to zero.
     np.fill_diagonal(similarity_matrix, 0)     
@@ -120,12 +117,12 @@ def held_out_recommendation(user_item_matrix, model_config=[10, "cosine", 10], u
         dict_ = recommend_ingredients(pd.DataFrame(recipe).T, X_curr, model_config[0] , model_config[1],
                                                n_recommendations = model_config[2], alpha=alpha)
         
+        # Append this list of recommendations for different recipes to the dictionary for with key k
         for k, recs in dict_.items():
             recommendations[k].append(recs[0])
         
         # Store the removed ingredient and corresponding recommendations
         held_out_ingredients.append(ing)
-        #recommendations.append(recommendation)
         
     return (held_out_ingredients, recommendations)
 
@@ -181,10 +178,7 @@ def calculate_metrics(missing_ingredients, recommendations, k, sim):
         - mean rank of the missing ingredients in the list of recommended ingredients.
         - median rank of the missing ingredients in the list of recommended ingredients.
         
-    """
-    
-    # from recommendation_evaluation_functions import metric_1, metric_2, metric_3
-    
+    """    
     metrics = pd.DataFrame(columns = ["k", "similarity_measure", "top10_presence", "mean_rank", "median_rank"])
     metrics.loc[0, "k"]                  = k
     metrics.loc[0, "similarity_measure"] = sim

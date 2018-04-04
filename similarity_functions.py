@@ -34,7 +34,8 @@ def asymmetric_cosine(X, alpha = 0.2):
         ingredients we are evaluating.
 
         Inputs:
-            X: dataframe of recipes x ingredients
+            X:     dataframe of recipes x ingredients
+            alpha: tuning parameter, different weights to set sizes for the elements in the pair
     """
     
      # Find the intersection of each ingredient pair (co-occurrences).
@@ -63,7 +64,7 @@ def pmi(X):
     """
     
     cooc = X.T.dot(X) / X.shape[0] # Get co-occurrence matrix.
-    pmi = cooc / np.outer(np.diag(cooc), np.diag(cooc).T) # Calculate PMIs.
+    pmi  = cooc / np.outer(np.diag(cooc), np.diag(cooc).T) # Calculate PMIs.
     pmi.values[[range(pmi.shape[0])]*2] = 0 # Set self-PMI to zero.
     
     return np.array(pmi)
