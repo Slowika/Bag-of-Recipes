@@ -20,10 +20,9 @@ def recommend_ingredients(partial_recipes, user_item_matrix, k = 10, similarity_
         - similarity_measure: the measure used for calculating the similarity between ingredients. One of
                               'cosine', 'asymmetric_cosine', 'jaccard', 'pmi'.
                               
-        - similarity_matrix:  the precomputed matrix of ingredient similarities. If not given, this will be
-                              computed by the function.
-                              
         - n_recommendations:  the desired number of recommended ingredients per recipe.
+        
+        - alpha:              tuning parameter for asymmetric cosine similarity.
         
     Outputs a matrix of the recommended ingredients (columns) for the given partial recipes (rows).
         
@@ -82,9 +81,10 @@ def recommend_ingredients(partial_recipes, user_item_matrix, k = 10, similarity_
 
 
 def held_out_recommendation(user_item_matrix, model_config=[10, "cosine", 10], usePCA = False, alpha = 0.2):
+    """Return a list of held out ingredients and a list of corresponding recommendations.
+    
     """
-    Returns a list of held out ingredients and a list of corresponding recommendations
-    """
+    
     held_out_ingredients = []
     recommendations      = {}
     
@@ -130,7 +130,7 @@ def held_out_recommendation(user_item_matrix, model_config=[10, "cosine", 10], u
 
 def metric_1(missing_ingredients, recommendations):
     """Return the percentage of recipes for which the missing ingredient
-    is among the top-10 recommended ingredients. (Mean Precision @ 10)
+    is among the top-10 recommended ingredients (recall@10).
     
     """    
     
@@ -170,7 +170,8 @@ def calculate_metrics(missing_ingredients, recommendations, k, sim):
     Inputs:
         - missing_ingredients: list of the held-out ingredients.
         - recommendations: list of arrays with corresponding recommendations.
-        - model_config: model settings used to make the recommendations.
+        - k: number of neighbours used to make the recommendations.
+        - sim: similarity matrix used to make the recommendations.
         
     Outputs a dataframe with:
         - crucial model settings.
@@ -179,6 +180,7 @@ def calculate_metrics(missing_ingredients, recommendations, k, sim):
         - median rank of the missing ingredients in the list of recommended ingredients.
         
     """    
+    
     metrics = pd.DataFrame(columns = ["k", "similarity_measure", "top10_presence", "mean_rank", "median_rank"])
     metrics.loc[0, "k"]                  = k
     metrics.loc[0, "similarity_measure"] = sim
