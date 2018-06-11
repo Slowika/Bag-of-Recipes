@@ -1,0 +1,200 @@
+model standAllocation
+uses "mmxprs";  ! Gain access to the Xpress-Optimizer solver
+uses "mmsystem"	! Provides procedures and functions related to the operating system
+
+setparam("XPRS_MAXTIME", -5*60) ! Limit running time to 5 min
+
+forward procedure print_sol_tabular
+forward procedure print_to_file
+
+! ============================
+! READ FLIGHT DATA
+! ============================
+
+!numStands  := 70 							        ! number of gates, to be read from a file
+!stands  := 1..numStands  							! set of all gates
+
+
+! Read flight data from dat file
+fopen("data/flightData.txt", F_INPUT)
+	
+	! -----------------------------------------
+	! Read number of flights and create arrays
+	! -----------------------------------------
+	
+	declarations
+		numFlights: integer  						! declare number of flights in the stand plan
+		numBuckets: integer							! number of 5 min buckets in selected stand plan period
+		SC:         set of integer					! declare set for use in stand conflicts
+	end-declarations
+	
+	readln('numBuckets ', numBuckets) 				! read number of flights from file
+	readln('numFlights ', numFlights) 				! read number of flights from file
+	
+	flights := 1..numFlights 						! set of all flights
+	buckets := 1..numBuckets						! set of all buckets
+	
+	declarations
+		arr: record
+			T:        array(flights) of integer		! declare array with all arrivals times
+			flightNo: array(flights) of string		! declare array with flight numbers
+		end-record
+		
+		dep: record
+			T:        array(flights) of integer   	! declare array with all departures times
+			flightNo: array(flights) of string		! declare array with flight numbers
+		end-record
+	end-declarations
+	
+	! -----------------------------------------
+	! Read departing and arriving flights times
+	! -----------------------------------------
+	readln('arrFlightNo depFlightNo') 				! Skip line with text
+	forall(i in flights) do
+		readln(arr.flightNo(i), dep.flightNo(i))	! Read arriving time and departing time for each turnaround
+	end-do
+	
+	readln('arrTime depTime') 						! Skip line with text
+	forall(i in flights) do
+		readln(arr.T(i), dep.T(i))					! Read arriving time and departing time for each turnaround
+	end-do
+		
+fclose(F_INPUT)
+
+
+! ============================
+! READ AIRPORT DATA
+! ============================
+
+fopen("data/airportData.txt", F_INPUT)
+	
+	! -----------------------------------------
+	! Read problem dimensions and create arrays
+	! -----------------------------------------
+	
+	declarations
+		numStands: integer  						! declare number of flights in the stand plan
+	end-declarations
+	
+	readln('numStands ',numStands) 					! read number of flights from file
+	
+	stands  := 1..numStands  						! set of all gates
+	
+	declarations
+		standNames: array(stands) of string			! declare array for stand names
+	end-declarations
+	
+	! -----------------------------------------
+	! Read departing and arriving flights times
+	! -----------------------------------------
+	readln('StandNames')			 				! Skip line with text
+	forall(k in stands) do
+		readln(standNames(k))						! Read stand name
+	end-do		
+fclose(F_INPUT)
+
+
+
+! ============================
+! DECLARATION OF DECISION VARIABLES
+! ============================
+
+declarations
+	x: array(flights, stands) of mpvar  			! Binary variable indicating assignment between a flight and a stand
+	y: array(flights)        of mpvar   			! Binary variable indicating that a flight could not be allocated
+end-declarations
+
+
+
+! =============================
+! CONSTRAINTS
+! =============================
+
+! (0) Decision variables are binary
+forall (i in flights) do
+	y(i) is_binary
+	forall (k in stands) x(i, k) is_binary
+end-do
+
+
+! (1) One flight can either be allocated to a single stand, or be unallocated
+forall (i in flights) do
+	sum(k in stands) x(i, k) + y(i) = 1
+end-do
+
+
+! (2) Stand conflict constraint: turnaround times of flights allocated to the same gate cannot overlap
+!forall (i in flights) do
+!	forall(j in flights | j > i) do	
+!		if ( (dep.T(j) - arr.T(i)) * (dep.T(i) - arr.T(j)) > 0 ) then
+!			forall (k in stands) x(i,k) + x(j,k) <= 1
+!		end-if
+!	end-do ! flights j
+!end-do ! flights i
+
+forall (t in buckets) do
+	ref := t*5
+	SC:= {}
+	forall (i in flights) do
+		if( arr.T(i) <= ref and dep.T(i) >= ref ) then
+			SC += {i}
+		end-if
+	end-do
+	forall (k in stands) stand_coflict(k, t) := sum(i in SC) x(i, k) <= 1
+end-do
+
+
+
+! =============================
+! OBJECTIVE FUNCTION
+! =============================
+
+! (1) Minimise number of unallocated flights
+z1 := sum(i in flights) y(i)
+
+starttime:= gettime	
+minimise(z1)
+
+print_sol_tabular
+print_to_file
+
+
+
+! =============================
+! PROCEDURES
+! =============================
+
+procedure print_sol_tabular
+	writeln('Optimality achieved in ',gettime - starttime, ' seconds.')
+	writeln('Number of unallocated flights: ',getobjval,".\n")
+	write(' '*8)
+	forall(k in stands) write (strfmt(k, 3))
+	write('  unallocated')
+	forall(i in flights) do
+		writeln
+		write( strfmt(arr.flightNo(i), 8))
+		forall(k in stands) write( strfmt(if(abs(getsol(x(i,k)))=0,'-','1'),3))
+		write('  ',strfmt(abs(getsol(y(i))), 11) )
+	end-do
+	writeln	
+	writeln
+end-procedure
+
+procedure print_to_file	
+	fopen("output/solution.txt",F_OUTPUT)
+	forall (i in flights) do
+		if getsol(y(i)) =  1 then
+				assigned_gate:= 'Unallocated'
+		else
+			forall(k in stands) do	
+				if getsol(x(i,k)) = 1 then
+					assigned_gate:= standNames(k)
+				end-if
+			end-do
+		end-if
+		writeln(arr.flightNo(i), ' ', assigned_gate)
+	end-do
+	fclose(F_OUTPUT)
+end-procedure
+
+end-model
