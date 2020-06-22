@@ -29,7 +29,7 @@ If you find this project useful, please cite:
 
 # License
 
-This implementation is licensed under the MIT license. The text of the license can be found 
+This implementation is licensed under the MIT license. The text of the license can be found [here](https://github.com/Slowika/Bag-of-Recipes/blob/master/LICENSE).
 
 
 
